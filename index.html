@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Trò chơi tình yêu</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: black;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      overflow: hidden;
+      color: #ff4da6; /* hồng đỏ */
+    }
+
+    .hidden { display: none; }
+
+    .screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 800px;
+    }
+
+    .title {
+      font-size: 2.5em;
+      margin-bottom: 25px;
+      animation: sparkle 2s infinite;
+    }
+
+    /* Nhấp nháy intro */
+    .blink { animation: blink 1s infinite; }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Tim đập mạnh cho câu hỏi */
+    #question .title {
+      animation: heartbeat 1s infinite;
+    }
+    @keyframes heartbeat {
+      0%   { transform: scale(1); }
+      20%  { transform: scale(1.2); }
+      40%  { transform: scale(1); }
+      60%  { transform: scale(1.15); }
+      80%  { transform: scale(1); }
+      100% { transform: scale(1); }
+    }
+
+    /* Hiệu ứng lấp lánh chữ */
+    @keyframes sparkle {
+      0%   { text-shadow: 0 0 5px #ff99cc, 0 0 10px #ff4da6; }
+      50%  { text-shadow: 0 0 20px #ff66b2, 0 0 30px #ff1a75; }
+      100% { text-shadow: 0 0 5px #ff99cc, 0 0 10px #ff4da6; }
+    }
+
+    .btn-group {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1;
+      max-width: 250px;
+      padding: 16px 28px;
+      font-size: 1.8em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: hotpink;
+      color: white;
+      transition: transform 0.2s;
+      margin-top: 20px;
+      margin-left: 10px;
+      margin-right: 10px;
+    }
+
+    button:hover { transform: scale(1.05); }
+
+    #final-message {
+      font-size: 2.5em;
+      animation: heartbeat 1s infinite, sparkle 2s infinite;
+    }
+
+    /* Nền tim */
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Nền -->
+  <canvas id="pinkboard"></canvas>
+  <canvas id="hearts"></canvas>
+
+  <!-- Intro -->
+  <div id="intro" class="screen">
+    <div class="title blink">Bí mật lớn đang chờ bé, <br> sẵn sàng khám phá chưa nào?</div>
+    <button onclick="startGame()">Sẵn sàng</button>
+  </div>
+
+  <!-- Question -->
+  <div id="question" class="screen hidden">
+    <div class="title" id="question-text"></div>
+    <div class="btn-group"></div>
+  </div>
+
+  <!-- Answer -->
+  <div id="answer" class="screen hidden">
+    <div class="title" id="answer-text"></div>
+    <div class="btn-group" id="answer-buttons"></div>
+  </div>
+
+  <!-- Final -->
+  <div id="final" class="screen hidden">
+    <div id="final-message"></div>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        text: "Hôm nay ngày bao nhiêu nhỉ?",
+        options: [
+          { label: "2/10", feedback: "Chúc mừng sinh nhật em yêu 🥳🎂💖" },
+          { label: "23/07", feedback: "Gì, đâu phải sn anh, qua lâu gòi 😆, <br> nay là sinh nhật em yêu đấy 🎉🎂" }
+        ]
+      },
+      {
+        text: "Người chơi cute dễ thương này là ai thế?",
+        options: [
+          { label: "Bé yêu", feedback: "Ơ, sao bé yêu vừa thông minh <br> lại vừa xinh thế nhỉ, <br> hế hế 😍" },
+          { label: "Anh yêu", feedback: "Te te, sai rùi, <br> Bé iu mới là xinh xắn cute hạt me 💕" }
+        ]
+      },
+      {
+        text: "Bé là một kỹ thuật viên tận tâm, <br> khi gặp bug bé sẽ?",
+        options: [
+          { label: "Sửa nó", feedback: "Hi, Anh là big bug của em đây 🐞 <br> Làm vợ a nhé? <br> Cả đời này ta bên nhau để ... sửa bug <br> hí hí 💍", final: true },
+          { label: "Kệ nó", feedback: "Kệ làm sao được 😆 <br> Làm vợ anh để ... <br> sửa bug anh iu nhé, cục cưng? <br>💍", final: true }
+        ]
+      }
+    ];
+
+    let current = 0;
+
+    function startGame() {
+      document.getElementById("intro").classList.add("hidden");
+      showQuestion();
+    }
+
+    function showQuestion() {
+      const q = questions[current];
+      document.getElementById("question").classList.remove("hidden");
+      document.getElementById("answer").classList.add("hidden");
+      document.getElementById("question-text").innerHTML = q.text;
+      const btnGroup = document.querySelector(".btn-group");
+      btnGroup.innerHTML = "";
+      q.options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.innerText = opt.label;
+        btn.onclick = () => answer(opt);
+        btnGroup.appendChild(btn);
+      });
+    }
+
+    function answer(option) {
+      document.getElementById("question").classList.add("hidden");
+      document.getElementById("answer").classList.remove("hidden");
+      document.getElementById("answer-text").innerHTML = option.feedback;
+
+      const btnGroup = document.getElementById("answer-buttons");
+      btnGroup.innerHTML = "";
+      if (option.final) {
+        const yesBtn = document.createElement("button");
+        yesBtn.innerText = "Vâng 💖";
+        yesBtn.onclick = () => showFinal("Vợ yêu, em tuyệt nhất 💕");
+        btnGroup.appendChild(yesBtn);
+
+        const noBtn = document.createElement("button");
+        noBtn.innerText = "Ứ ư 😘";
+        noBtn.onclick = () => showFinal("Vợ anh thật dễ thương 😍");
+        btnGroup.appendChild(noBtn);
+      } else {
+        const nextBtn = document.createElement("button");
+        nextBtn.innerText = "Câu tiếp 😁";
+        nextBtn.onclick = nextQuestion;
+        btnGroup.appendChild(nextBtn);
+      }
+    }
+
+    function nextQuestion() {
+      current++;
+      if (current < questions.length) {
+        showQuestion();
+      }
+    }
+
+    function showFinal(msg) {
+      document.getElementById("answer").classList.add("hidden");
+      document.getElementById("final").classList.remove("hidden");
+      document.getElementById("final-message").innerHTML = msg;
+    }
+
+    /* Hiệu ứng mưa tim */
+    const canvasHearts = document.getElementById("hearts");
+    const ctxH = canvasHearts.getContext("2d");
+    function resizeHearts() {
+      canvasHearts.width = window.innerWidth;
+      canvasHearts.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resizeHearts);
+    resizeHearts();
+
+    const hearts = [];
+    function drawHeart(x, y, size) {
+      ctxH.save();
+      ctxH.translate(x, y);
+      ctxH.scale(size * 3, size * 3);
+      ctxH.beginPath();
+      ctxH.moveTo(0, -2);
+      ctxH.bezierCurveTo(2, -4, 4, 0, 0, 4);
+      ctxH.bezierCurveTo(-4, 0, -2, -4, 0, -2);
+      ctxH.fillStyle = "rgba(255,105,180,0.6)";
+      ctxH.fill();
+      ctxH.restore();
+    }
+    function loopHearts() {
+      ctxH.clearRect(0, 0, canvasHearts.width, canvasHearts.height);
+      if (Math.random() < 0.3) {
+        hearts.push({
+          x: Math.random() * canvasHearts.width,
+          y: canvasHearts.height + 20,
+          size: Math.random() * 0.8 + 0.5,
+          speed: Math.random() * 3 + 2
+        });
+      }
+      hearts.forEach(h => h.y -= h.speed);
+      hearts.forEach(h => drawHeart(h.x, h.y, h.size));
+      requestAnimationFrame(loopHearts);
+    }
+    loopHearts();
+
+    /* Hiệu ứng tim phập phồng */
+    var settings = {
+      particles: {
+        length: 800, // số hạt
+        duration: 2,
+        velocity: 135,
+        effect: -0.35,
+        size: 14
+      }
+    };
+
+    var Point = (function() {
+      function Point(x, y) { this.x = x||0; this.y = y||0; }
+      Point.prototype.clone = function() { return new Point(this.x, this.y); };
+      Point.prototype.length = function(length) {
+        if (length === undefined) return Math.sqrt(this.x*this.x+this.y*this.y);
+        this.normalize(); this.x*=length; this.y*=length; return this;
+      };
+      Point.prototype.normalize = function() {
+        var l = this.length(); this.x/=l; this.y/=l; return this;
+      };
+      return Point;
+    })();
+
+    var Particle = (function() {
+      function Particle() { this.position=new Point(); this.velocity=new Point(); this.acceleration=new Point(); this.age=0; }
+      Particle.prototype.initialize = function(x,y,dx,dy) {
+        this.position.x=x; this.position.y=y; this.velocity.x=dx; this.velocity.y=dy;
+        this.acceleration.x=dx*settings.particles.effect; this.acceleration.y=dy*settings.particles.effect; this.age=0;
+      };
+      Particle.prototype.update = function(dt) {
+        this.position.x+=this.velocity.x*dt; this.position.y+=this.velocity.y*dt;
+        this.velocity.x+=this.acceleration.x*dt; this.velocity.y+=this.acceleration.y*dt; this.age+=dt;
+      };
+      Particle.prototype.draw = function(ctx,img) {
+        function ease(t){return (--t)*t*t+1;}
+        var size=img.width*ease(this.age/settings.particles.duration);
+        ctx.globalAlpha=1-this.age/settings.particles.duration;
+        ctx.drawImage(img,this.position.x-size/2,this.position.y-size/2,size,size);
+      };
+      return Particle;
+    })();
+
+    var ParticlePool=(function(){
+      var particles,firstActive=0,firstFree=0,duration=settings.particles.duration;
+      function ParticlePool(length){particles=new Array(length);for(var i=0;i<particles.length;i++)particles[i]=new Particle();}
+      ParticlePool.prototype.add=function(x,y,dx,dy){particles[firstFree].initialize(x,y,dx,dy);
+        firstFree++;if(firstFree==particles.length)firstFree=0;if(firstActive==firstFree)firstActive++;if(firstActive==particles.length)firstActive=0;};
+      ParticlePool.prototype.update=function(dt){var i;
+        if(firstActive<firstFree){for(i=firstActive;i<firstFree;i++)particles[i].update(dt);}
+        if(firstFree<firstActive){for(i=firstActive;i<particles.length;i++)particles[i].update(dt);for(i=0;i<firstFree;i++)particles[i].update(dt);}
+        while(particles[firstActive].age>=duration&&firstActive!=firstFree){firstActive++;if(firstActive==particles.length)firstActive=0;}};
+      ParticlePool.prototype.draw=function(ctx,img){
+        if(firstActive<firstFree){for(var i=firstActive;i<firstFree;i++)particles[i].draw(ctx,img);}
+        if(firstFree<firstActive){for(var i=firstActive;i<particles.length;i++)particles[i].draw(ctx,img);for(i=0;i<firstFree;i++)particles[i].draw(ctx,img);}
+      };
+      return ParticlePool;
+    })();
+
+    (function(canvas){
+      var ctx=canvas.getContext('2d'),particles=new ParticlePool(settings.particles.length),
+          particleRate=settings.particles.length/settings.particles.duration,time;
+
+      function pointOnHeart(t){
+        return new Point(
+          160*Math.pow(Math.sin(t),3),
+          130*Math.cos(t)-50*Math.cos(2*t)-20*Math.cos(3*t)-10*Math.cos(4*t)+25
+        );
+      }
+
+      var image=(function(){
+        var c=document.createElement('canvas'),ctx=c.getContext('2d');
+        c.width=settings.particles.size; c.height=settings.particles.size;
+        function to(t){var p=pointOnHeart(t);p.x=settings.particles.size/2+p.x*settings.particles.size/350;
+          p.y=settings.particles.size/2-p.y*settings.particles.size/350;return p;}
+        ctx.beginPath();var t=-Math.PI,p=to(t);ctx.moveTo(p.x,p.y);
+        while(t<Math.PI){t+=0.01;p=to(t);ctx.lineTo(p.x,p.y);}ctx.closePath();ctx.fillStyle='#ea80b0';ctx.fill();
+        var img=new Image();img.src=c.toDataURL();return img;
+      })();
+
+      function render(){
+        requestAnimationFrame(render);
+        var newTime=Date.now()/1000,dt=newTime-(time||newTime); time=newTime;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        var amount=particleRate*dt;
+        for(var i=0;i<amount;i++){var pos=pointOnHeart(Math.PI-2*Math.PI*Math.random());var dir=pos.clone().length(settings.particles.velocity);
+          particles.add(canvas.width/2+pos.x,canvas.height/2-pos.y,dir.x,-dir.y);}
+        particles.update(dt);particles.draw(ctx,image);
+      }
+
+      function onResize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+      window.onresize=onResize;setTimeout(function(){onResize();render();},10);
+    })(document.getElementById('pinkboard'));
+  </script>
+</body>
+</html>
